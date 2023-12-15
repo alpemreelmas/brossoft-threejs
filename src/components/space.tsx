@@ -12,6 +12,7 @@ import { GLTF } from 'three-stdlib'
 import { useLoader, useThree} from '@react-three/fiber'
 import {useEffect, useMemo, useRef} from 'react'
 import { EffectComposer, SelectiveBloom } from '@react-three/postprocessing'
+import {debounce} from "next/dist/server/utils";
 
 type GLTFResult = GLTF & {
     nodes: {
@@ -64,57 +65,26 @@ export default function Space(props: JSX.IntrinsicElements['group']) {
     }, [nodes])
     const starTexture = useLoader(THREE.TextureLoader, '/models/star.png')
 
-    let lastKnownScrollPosition = 0;
-    let ticking = false;
-    const camera = useThree(state => state.camera)
-    function scrollDown(positionY: number){
-        let positionThreshold = 0.1
-        positionY < 0.1 ? positionY = 0.1 : positionY
-
-        if(positionY < 0.1 || camera.position.x < -4){
-            camera.position.x = -4
-            camera.position.y = -4
-            camera.position.z = -4
-        }
-
-        if(positionY >= 1 || camera.position.x > 4){
-            camera.position.x = 4
-            camera.position.y = 4
-            camera.position.z = 4
-        }
-
-        let final = positionY*positionThreshold
-        console.log(final)
-        if (positionY > lastKnownScrollPosition) {
-            console.log('scrolling down');
-            camera.position.x += final
-            camera.position.y += final
-            camera.position.z += final
-        } else if (positionY < lastKnownScrollPosition) {
-            console.log('scrolling up');
-            camera.position.x -= final
-            camera.position.y -= final
-            camera.position.z -= final
-        }
-
-        lastKnownScrollPosition =
-            positionY <= 0.1 ? 0.1 : positionY;
-
-    }
-
     useEffect(() => {
         window.scrollTo(0, 0);
-        window.addEventListener("scroll",(e)=>{
-            let percentPosition = window.scrollY/window.innerHeight;
+        console.log(ref.current.scale);
+        window.addEventListener("mousemove",(e)=>{
 
-            if (!ticking) {
-                window.requestAnimationFrame(() => {
-                    scrollDown(percentPosition);
-                    ticking = false;
-                });
+            window.requestAnimationFrame(function(){
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const mouseX = e.clientX - centerX;
+                const mouseY = e.clientY - centerY;
 
-                ticking = true;
-            }
+                // Merkeze olan uzaklığı kullanarak modeli eğ
+                const distance = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
+                const maxDistance = Math.max(window.innerWidth, window.innerHeight);
+                const normalizedDistance = distance / maxDistance;
+
+                ref.current.rotation.x = (mouseY / maxDistance) * Math.PI * 0.5 * normalizedDistance;
+                ref.current.rotation.y = (mouseX / maxDistance) * Math.PI * 0.5 * normalizedDistance;
+
+            });
         })
 
     }, []);
@@ -124,7 +94,7 @@ export default function Space(props: JSX.IntrinsicElements['group']) {
                 <pointLight
                     position={[0, 0, 0]}
                     ref={galaxyCenterLightRef}
-                    intensity={0.5}
+                    intensity={1}
                 />
                 <Points scale={0.05} positions={positions} colors={colors}>
                     <pointsMaterial
@@ -132,7 +102,7 @@ export default function Space(props: JSX.IntrinsicElements['group']) {
                         transparent
                         depthWrite={false}
                         vertexColors
-                        opacity={0.4}
+                        opacity={0.6}
                         depthTest
                         size={0.01}
                     />
